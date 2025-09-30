@@ -23,6 +23,8 @@ sub entry {
 	
 entry("fork");
 entry("exit");
+entry("getppid");
+entry("getancestor");
 entry("wait");
 entry("pipe");
 entry("read");
@@ -42,3 +44,4 @@ entry("getpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");
+
