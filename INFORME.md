@@ -13,11 +13,12 @@ Ademas de estas dos llamadas se implemento un programam de prueba con  el nombre
 Las nuevas syscalls utilizan la estructura `proc`:
 
 -getpid() obtiene el proceso actual con `myproc()`, revisa el campo parent y retorna su pid.
+
 -getancestor(n) parte del proceso latente y revisa el mismo campo parent "n" veces hasta que se rompe el ciclo cuando el padre no es valido,
 lo que se verifica cuando se retorna -1 como se menciono anteriormente.
 Ademas se manejaron los casos borde como procesos sin padre (ej. `init`) y argumentos negativos.
 
-##Explicación de las modificaciones realizadas.
+##Explicación de las modificaciones realizadas
  
 - `kernel/syscall.h`: definición de números de syscall correspondientes (SYS_getppid y SYS_getancestor).
 - `user/user.h`: se incluyeron las funciones de usuario (int getppid(void); y int getancestor(int n);).
