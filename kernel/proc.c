@@ -16,7 +16,18 @@ int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
+
 static void freeproc(struct proc *p);
+
+static uint64 kseed = 88172645463393265ULL;  // semilla no-cero
+
+static uint64
+krand(void)
+{
+  // LCG: X_{n+1} = (a * X_n + c) mod 2^64
+  kseed = kseed * 6364136223846793005ULL + 1;
+  return kseed;
+}
 
 extern char trampoline[]; // trampoline.S
 
@@ -106,8 +117,7 @@ allocpid()
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
-static struct proc*
-allocproc(void)
+static struct proc* allocproc(void)
 {
   struct proc *p;
 
@@ -124,6 +134,11 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+
+  p->tickets = 100;
+  if(p->tickets < 1)
+    p->tickets = 1;
+  p->slices = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -421,51 +436,70 @@ kwait(uint64 addr)
 void
 scheduler(void)
 {
-  struct proc *p;
   struct cpu *c = mycpu();
-
   c->proc = 0;
+
   for(;;){
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting. Then turn them back off
-    // to avoid a possible race between an interrupt
-    // and wfi.
     intr_on();
-    intr_off();
 
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
+    // 1) Sumar tickets de todos los RUNNABLE
+    int total = 0;
+    struct proc *p;
+
+    for(p = proc; p < &proc[NPROC]; p++){
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+      if(p->state == RUNNABLE){
+        int t = p->tickets;
+        if(t < 1) t = 1;     // robustez: mínimo 1
+        total += t;
       }
       release(&p->lock);
     }
-    if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      asm volatile("wfi");
+
+    if(total == 0){
+      // No hay nadie runnable; vuelve a intentar
+      continue;
+    }
+
+    // 2) Elegir el ticket ganador en [1, total]
+    uint64 r = krand();
+    int winning = (int)(r % total) + 1;
+
+    // 3) Recorrer acumulando hasta alcanzar el ganador
+    int acc = 0;
+    struct proc *winner = 0;
+
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+      if(p->state == RUNNABLE){
+        int t = p->tickets;
+        if(t < 1) t = 1;
+        acc += t;
+        if(acc >= winning && winner == 0){
+          winner = p;
+          // Nos quedamos con su lock tomado y salimos del for
+          break;
+        }
+      }
+      release(&p->lock);
+    }
+
+    if(winner){
+      // 4) Ejecutar el proceso ganador (igual que en RR)
+      winner->state = RUNNING;
+      c->proc = winner;
+
+      winner->slices++;
+
+      swtch(&c->context, &winner->context);
+
+      // Ya volvió al scheduler
+      c->proc = 0;
+      release(&winner->lock);
     }
   }
 }
 
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
 void
 sched(void)
 {

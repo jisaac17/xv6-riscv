@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "vm.h"
 
+extern struct proc proc[NPROC];
+
 uint64
 sys_exit(void)
 {
@@ -104,4 +106,36 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_settickets(void)
+{
+  int n;  argint(0, &n);           
+  if (n < 1) n = 1;
+  myproc()->tickets = n;
+  return 0;
+}
+uint64
+sys_getslices(void)
+{
+  int pid;
+  argint(0, &pid);
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->pid == pid){
+      uint s = p->slices;
+      release(&p->lock);
+      return s;
+    }
+    release(&p->lock);
+  }
+  return (uint64)-1;
+}
+uint64
+sys_yield(void)
+{
+  yield();
+  return 0;
 }
