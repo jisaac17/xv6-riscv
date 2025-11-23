@@ -95,6 +95,7 @@ sys_kill(void)
 
 // return how many clock tick interrupts have occurred
 // since start.
+
 uint64
 sys_uptime(void)
 {
@@ -105,3 +106,29 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+uint64
+sys_mrdprotect(void)
+{
+  uint64 addr;
+  int len;
+
+  
+  argaddr(0, &addr);
+  argint(1, &len);
+
+  return mrdprotect((void*)addr, len);
+}
+
+
+uint64
+sys_munrdprotect(void)
+{
+  uint64 addr;
+  int len;
+
+  argaddr(0, &addr);
+  argint(1, &len);
+
+  return munrdprotect((void*)addr, len);
+}
+

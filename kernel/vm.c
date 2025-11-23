@@ -484,3 +484,71 @@ ismapped(pagetable_t pagetable, uint64 va)
   }
   return 0;
 }
+
+
+int
+mrdprotect(void *addr, int len)
+{
+  struct proc *p = myproc();
+
+  if(len <= 0)
+    return -1;
+
+  if(((uint64)addr % PGSIZE) != 0)
+    return -1;
+
+  for(int i = 0; i < len; i++){
+    uint64 va = (uint64)addr + i * PGSIZE;
+
+    
+    if(va >= p->sz)
+      return -1;
+
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(pte == 0)
+      return -1;
+    if((*pte & PTE_V) == 0)
+      return -1;
+    if((*pte & PTE_U) == 0)
+      return -1;
+
+    *pte &= ~PTE_R;
+  }
+
+  // flush TLB
+  sfence_vma();
+  return 0;
+}
+
+int
+munrdprotect(void *addr, int len)
+{
+  struct proc *p = myproc();
+
+  if(len <= 0)
+    return -1;
+
+  if(((uint64)addr % PGSIZE) != 0)
+    return -1;
+
+  for(int i = 0; i < len; i++){
+    uint64 va = (uint64)addr + i * PGSIZE;
+
+    if(va >= p->sz)
+      return -1;
+
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(pte == 0)
+      return -1;
+    if((*pte & PTE_V) == 0)
+      return -1;
+    if((*pte & PTE_U) == 0)
+      return -1;
+
+   
+    *pte |= PTE_R;
+  }
+
+  sfence_vma();
+  return 0;
+}
