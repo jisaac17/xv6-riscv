@@ -26,7 +26,7 @@ int pause(int);
 int uptime(void);
 int mrdprotect(void *addr, int len);
 int munrdprotect(void *addr, int len);
-
+int sleep(int);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

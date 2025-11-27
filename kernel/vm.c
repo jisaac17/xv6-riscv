@@ -512,7 +512,8 @@ mrdprotect(void *addr, int len)
     if((*pte & PTE_U) == 0)
       return -1;
 
-    *pte &= ~PTE_R;
+    *pte &= ~(PTE_R | PTE_W | PTE_X);
+    *pte |= PTE_WO;
   }
 
   // flush TLB
@@ -545,8 +546,8 @@ munrdprotect(void *addr, int len)
     if((*pte & PTE_U) == 0)
       return -1;
 
-   
-    *pte |= PTE_R;
+    *pte &= ~PTE_WO;
+    *pte |= (PTE_R | PTE_W);
   }
 
   sfence_vma();

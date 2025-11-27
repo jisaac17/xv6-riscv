@@ -22,25 +22,15 @@ El objetivo es aprender sobre manejo de PTEs, syscalls y traps generados por acc
 - Recorrido y lectura de PTEs  
 - Limpieza/restauración de `PTE_R`  
 - `sfence_vma()` para limpiar TLB 
+- implementación de mrdprotect y mundrdprotect quitando y agregando  PTE_R, PTE_W, PTE_X  y PTE_WO en cada función correspondiente.
 
-6.  se crearon dos programas de prueba y se agregó
+6. se cambio el manejo de page faults en kernel/trap.c
  
 ## Dificultades Encontradas
 
--Riscv no acepta que una página permita solo escritura y no deje leer (`W=1` y `R=0` es inválido).
-Por lo tanto, la página se invalida al probar el test entregado por el enunciado, lo que de igual manera demuestra que se estaba sacando el permiso al ser invalidado en la prueba de enunciado y con
-La prueba `rdprotect_safe` se demuestra que se está restaurando el permiso de lectura.
+-RISC-V no permite páginas write-only: La combinación W=1, R=0 no es válida en hardware.
+Para solucionarlo, se quitaron todos los permisos (R, W, X) y se emularon las escrituras en el trap handler, bloqueando las lecturas.
 
 -las funciones como por `argaddr()` y `argint()` son void por lo que no se pueden ocupar para comparaciones numéricas. Esto se resuelve realizando la
 La validación directamente en `mrdprotect()` y `munrdprotect()` dentro de `vm.c`, donde se realizan todas las comprobaciones y se retorna `0` o `-1` según corresponda.
-
-## Validacion de errores 
-
-Se implementó un programa extra verificar el manejo de errores pedidos en el enunciado, donde se comprueba los siguientes casos:
-
-- `len <= 0`
-- dirección no alineada
-- página no mapeada
-- fuera del espacio del proceso
-- dirección tipo kernel
 
